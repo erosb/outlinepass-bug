@@ -1,0 +1,17 @@
+{
+  "name": "animations",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "webpack index.js bundle.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "collada-loader-three": "0.0.3",
+    "three": "0.89.0",
+    "three-collada-loader-2": "^1.0.1"
+  }
+}
