@@ -1,6 +1,14 @@
 var THREE = require("three");
 var ColladaLoader = require("three-collada-loader-2");
 
+var EffectComposer = require("postprocessing").EffectComposer;
+var RenderPass = require("postprocessing").RenderPass;
+var OutlinePass = require("postprocessing").OutlinePass;
+var ShaderPass = require("postprocessing").ShaderPass;
+var FXAAShader = require("postprocessing").FXAAShader;
+
+
+//*
 var loader = new ColladaLoader();
 
 
@@ -10,24 +18,23 @@ var clock = new THREE.Clock();
 
 var models = {
     "knight": "./knight/knight_low_collada.DAE",
-    "scorpid": "./scorpid/scorpid_collada.DAE",
-    "battlerage": "./battlerage-elf/Elf-ranger_collada.DAE",
-    "soulblade": "./soulblade-elf/elfranger_collada.DAE"
+    "scorpid": "./scorpid/scorpid_collada.DAE"
 }
 
-var modelId = document.location.search.substring(1);
+var modelId = document.location.search.substring(1) || "knight";
 var modelPath = models[modelId] || models.knight;
  
+var outlinePass, composer, childMeshes = []; 
+
+
+
+
 function init() {
-    
+
     loader.load(modelPath, function ( collada ) {
         console.log(collada)
-        var mesh = window.mesh = collada.scene;
+        mesh = window.mesh = collada.scene;
         var sc = 0.15;
-        if (modelId == "battlerage" || modelId == "soulblade") {
-            sc = 0.5;
-            mesh.position.y = -0.5;
-        }
         mesh.scale.set(sc, sc, sc);
         mesh.position.z = -0.5;
         if (modelId === "scorpid") {
@@ -35,38 +42,60 @@ function init() {
         }
         mixer = new THREE.AnimationMixer(mesh);
         action = mixer.clipAction(collada.animations[0]);
+        
+    
         scene.add( mesh );
-                    
+        childMeshes = [];
+        mesh.traverse(function(obj) {
+            if ( ! (obj instanceof THREE.AmbientLight)) {
+                childMeshes.push(obj);
+            }
+        })
+        
+		outlinePass = new OutlinePass( scene, camera, {edgeStrength: 4.5, patternScale: 7.5 } ); /* new THREE.Vector2( window.innerWidth, window.innerHeight ), */
+        outlinePass.renderToScreen = true;
+		composer.addPass( outlinePass );
+        outlinePass.setSelection(childMeshes);
     });
- 
-    camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 0.01, 10 );
+
+    camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 0.01, 10/* */);
     camera.position.z = 1;
  
     scene = new THREE.Scene();
 
     renderer = new THREE.WebGLRenderer( { antialias: true } );
+    renderer.shadowMap.enabled = true;
     renderer.setSize( window.innerWidth, window.innerHeight );
-    document.body.appendChild( renderer.domElement );
- 
+    document.body.appendChild(renderer.domElement);
+    
+    
+    composer = new EffectComposer( renderer );
+    composer.setSize( window.innerWidth, window.innerHeight );
+                
+	renderPass = new RenderPass( scene, camera );
+    renderPass.renderToScreen = false;
+	composer.addPass( renderPass );
 }
 
 function animate() {
- 
+
+    var delta = clock.getDelta();
     requestAnimationFrame( animate );
- 
-    renderer.render( scene, camera );
+     
+    composer.render(delta);
     
     if (mixer && playUntil) {
-        var delta = clock.getDelta();
         
         if (clock.elapsedTime >= (playUntil - playFrom)) {
             action.stop();
             clock = new THREE.Clock(true);
-            mixer.time = action.time = clock.time = playFrom;
+            mixer.time = action.time = playFrom;
             action.play();
         }
         mixer.update(delta);
+        
     }
+    
 }
 
 var anims = {};
@@ -113,77 +142,8 @@ anims.scorpid = {
     "jump": [951, 1015]
 }
 
-anims.soulblade = {
-    "T-pose": [1, 9],
-    "Idle_01": [10, 140],
-    "Idle_02": [140, 540],
-    "Walk": [550, 590],
-    "Walk_back": [595, 635],
-    "strafe_right": [640, 680],
-    "strafe_left": [680, 720],
-    "Run": [730, 750],
-    "Jump_run": [750, 785],
-    "slide-stop": [785, 825],
-    "jump_inplace": [825, 860],
-    "death_1": [860, 910],
-    "death_2": [920, 970],
-    "hit_1": [980, 1000],
-    "hit_2": [1000, 1020],
-    "idle_combat": [1030, 1130],
-    "action_1": [1130, 1170],
-    "action_2": [1170, 1200],
-    "action_3": [1200, 1230],
-    "bow_draw": [1230, 1260],
-    "idle_bow": [1260, 1360],
-    "bow_action_1": [1360, 1410],
-    "bow_action_2": [1410, 1445],
-    "bow_withdraw": [1445, 1475],
-    "sword_draw": [1480, 1510],
-    "sword_idle": [1510, 1610],
-    "sword_action_1": [1610, 1640],
-    "sword_action_2": [1640, 1690],
-    "sword_action_3": [1690, 1730],
-    "sword_action_4": [1730, 1795],
-    "sword_withdraw": [1780, 1820]    
-};
-
-
-anims.battlerage = {
-    "T-pose": [1, 9],
-    "Idle_01": [10, 140],
-    "Idle_02": [140, 540],
-    "Walk": [550, 590],
-    "Walk_back": [595, 635],
-    "strafe_right": [640, 680],
-    "strafe_left": [680, 720],
-    "Run": [730, 750],
-    "Jump_run": [750, 785],
-    "slide-stop": [785, 825],
-    "jump_inplace": [825, 860],
-    "death_1": [860, 910],
-    "death_2": [920, 970],
-    "hit_1": [980, 1000],
-    "hit_2": [1000, 1020],
-    "idle_combat": [1030, 1130],
-    "action_1": [1130, 1170],
-    "action_2": [1170, 1200],
-    "action_3": [1200, 1230],
-    "bow_draw": [1230, 1260],
-    "idle_bow": [1260, 1360],
-    "bow_action_1": [1360, 1410],
-    "bow_action_2": [1410, 1445],
-    "bow_withdraw": [1445, 1475],
-    "sword_draw": [1480, 1510],
-    "sword_draw": [1510, 1610],
-    "sword_action_1": [1610, 1640],
-    "sword_action_2": [1640, 1690],
-    "sword_action_3": [1690, 1730],
-    "sword_action_4": [1730, 1795],
-    "sword_withdraw": [1780, 1820],
-
-};
-
 window.playAnim = function(name) {
+    console.log(modelId, name)
     var anim = anims[modelId][name];
     if (!anim) {
         console.error("not found", name);
